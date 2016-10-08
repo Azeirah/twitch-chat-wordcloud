@@ -15,6 +15,11 @@ from fileSelectWidget import FileSelectWidget
 from confy import Confy
 from cloudy import Cloudy
 
+# This is to work around a QImage memory-leak bug
+# see https://bugreports.qt.io/browse/PYSIDE-140
+# specifically, the comment by Neil Whelchel
+import ctypes 
+
 config = Confy('config.json')
 
 class CloudyWorker(QObject):
@@ -125,16 +130,50 @@ class CloudyGui(QFrame):
         # debounce the rendering
         self.lastTime = 0
 
+        # workaround for Python3 QImage bug
+        # QImage requires that a reference to the image data it receives is kept
+        # for as long as the QImage is visible.
+        # this is that reference, see in self.imgready the other half of the workaround
+        self.previousReference = None
+
     def selectImageFile(self, file):
         config['image'] = file
 
     def imgready(self, img):
         if time.time() - self.refreshRate >= self.lastTime:
             if config['previewImage']:
-                image = QImage(ImageQt(img))
+                data = img.tobytes("raw", "BGRX")
+                QImgFormat = QImage.Format_RGB32
+                image = QImage(data, img.size[0], img.size[1], QImgFormat)
+
                 pix = QPixmap.fromImage(image)
                 self.cloudImage.setPixmap(pix)
                 self.cloudImage.show()
+
+                # Python3 combined with QImage has a bug
+                # the reference to the image data that you're required to keep
+                # gets refcounted once too much inside the QImage code.
+                # Why? Partially Python3 bug, partially a bit complicated
+                # tl;dr, QImage refcounts imageData once too much
+                # decrease the amount of references every time the previous image
+                # stops being visible
+                # for more info see: 
+                # https://bugreports.qt.io/browse/PYSIDE-140
+                # http://stackoverflow.com/questions/17732816
+                # and
+                # http://stackoverflow.com/questions/14716850
+                # 
+                # note this doesn't literally clean up the previous data immediately
+                # it only affects the refcount, so the garbage collector will be able
+                # to pick it up whenever it runs
+                if self.previousReference:                
+                    _decref = ctypes.pythonapi.Py_DecRef
+                    _decref.argtypes = [ctypes.py_object]
+                    _decref.restype = None
+
+                    _decref(self.previousReference)
+                self.previousReference = data
+
             self.lastTime = time.time()
 
     def startToggle(self):
