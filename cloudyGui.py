@@ -55,6 +55,7 @@ class CloudyGui(QFrame):
         super().__init__()
 
         self.refreshRate = config.get('refreshRate', 5.0)
+        self.previewImage = config.get('previewImage', True)
 
         self.setWindowTitle('Twitch cloud')
 
@@ -63,41 +64,49 @@ class CloudyGui(QFrame):
         self.config_layout = QFormLayout()
         self.vlayout.addLayout(self.config_layout)
 
-        self.nicknameLbl    = QLabel('Twitch chat username')
-        self.oauthLbl       = QLabel('<a href="http://www.twitchapps.com/tmi/">Oauth</a>')
+        self.nicknameLbl     = QLabel('Twitch chat username')
+        self.oauthLbl        = QLabel('<a href="http://www.twitchapps.com/tmi/">Oauth</a>')
         self.oauthLbl.setOpenExternalLinks(True)
-        self.channelLbl     = QLabel('Channel name')
-        self.limitLbl       = QLabel('Maximum text length')
-        self.imageLbl       = QLabel('Image mask')
-        self.refreshRateLbl = QLabel('Refresh rate (in s)')
+        self.channelLbl      = QLabel('Channel name')
+        self.limitLbl        = QLabel('Maximum text length')
+        self.imageLbl        = QLabel('Image mask')
+        self.refreshRateLbl  = QLabel('Refresh rate (in s)')
+        self.previewImageLbl = QLabel('Preview cloud below? (performance)')
 
-        self.nicknameField    = QLineEdit(self)
-        self.oauthField       = QLineEdit(self)
-        self.channelField     = QLineEdit(self)
-        self.limitField       = QLineEdit(self)
-        self.imageDirSelect   = FileSelectWidget()
-        self.refreshRateField = QLineEdit(self)
+        self.nicknameField     = QLineEdit(self)
+        self.oauthField        = QLineEdit(self)
+        self.channelField      = QLineEdit(self)
+        self.limitField        = QLineEdit(self)
+        self.imageDirSelect    = FileSelectWidget()
+        self.refreshRateField  = QLineEdit(self)
+        self.previewImageCheck = QCheckBox(self)
         
-        self.nicknameField.setText(config.get('nickname', ''))
-        self.oauthField.setText(config.get('oauth', ''))
-        self.channelField.setText(config.get('channel', ''))
-        self.limitField.setText(str(config.get('limit', '1500')))
-        self.imageDirSelect.field.setText(config.get('image', ''))
-        self.refreshRateField.setText(str(config.get('refreshRate', '5.0')))
+        self.nicknameField.setText(               config.get('nickname', ''))
+        self.oauthField.setText(                  config.get('oauth', ''))
+        self.channelField.setText(                config.get('channel', ''))
+        self.limitField.setText(              str(config.get('limit', '1500')))
+        self.imageDirSelect.field.setText(        config.get('image', ''))
+        self.refreshRateField.setText(        str(config.get('refreshRate', '5.0')))
+        if bool(config.get('previewImage', True)):
+            self.previewImageCheck.setCheckState(Qt.Checked)
+        else:
+            self.previewImageCheck.setCheckState(Qt.Unchecked)
 
-        self.config_layout.addRow(self.nicknameLbl,    self.nicknameField)
-        self.config_layout.addRow(self.oauthLbl,       self.oauthField)
-        self.config_layout.addRow(self.channelLbl,     self.channelField)
-        self.config_layout.addRow(self.limitLbl,       self.limitField)
-        self.config_layout.addRow(self.imageLbl,       self.imageDirSelect)
-        self.config_layout.addRow(self.refreshRateLbl, self.refreshRateField)
+        self.config_layout.addRow(self.nicknameLbl,     self.nicknameField)
+        self.config_layout.addRow(self.oauthLbl,        self.oauthField)
+        self.config_layout.addRow(self.channelLbl,      self.channelField)
+        self.config_layout.addRow(self.limitLbl,        self.limitField)
+        self.config_layout.addRow(self.imageLbl,        self.imageDirSelect)
+        self.config_layout.addRow(self.refreshRateLbl,  self.refreshRateField)
+        self.config_layout.addRow(self.previewImageLbl, self.previewImageCheck)
 
-        self.nicknameField.textChanged.connect(self.onNicknameChange)
-        self.oauthField.textChanged.connect   (self.onOauthChange)
-        self.channelField.textChanged.connect (self.onChannelChange)
-        self.limitField.textChanged.connect   (self.onLimitChange)
-        self.imageDirSelect.fileSelected.connect(self.selectImageFile)
-        self.refreshRateField.textChanged.connect(self.onRefreshRateChange)
+        self.nicknameField.textChanged.connect     (self.onNicknameChange)
+        self.oauthField.textChanged.connect        (self.onOauthChange)
+        self.channelField.textChanged.connect      (self.onChannelChange)
+        self.limitField.textChanged.connect        (self.onLimitChange)
+        self.imageDirSelect.fileSelected.connect   (self.selectImageFile)
+        self.refreshRateField.textChanged.connect  (self.onRefreshRateChange)
+        self.previewImageCheck.stateChanged.connect(self.onPreviewImageChange)
 
         channelFocusOutFilter = FocusOutFilter(self.channelField)
         self.channelField.installEventFilter(channelFocusOutFilter)
@@ -121,10 +130,11 @@ class CloudyGui(QFrame):
 
     def imgready(self, img):
         if time.time() - self.refreshRate >= self.lastTime:
-            image = QImage(ImageQt(img))
-            pix = QPixmap.fromImage(image)
-            self.cloudImage.setPixmap(pix)
-            self.cloudImage.show()
+            if config['previewImage']:
+                image = QImage(ImageQt(img))
+                pix = QPixmap.fromImage(image)
+                self.cloudImage.setPixmap(pix)
+                self.cloudImage.show()
             self.lastTime = time.time()
 
     def startToggle(self):
@@ -157,6 +167,11 @@ class CloudyGui(QFrame):
 
     def onRefreshRateChange(self, value):
         config['refreshRate'] = float(value)
+        self.refreshRate = float(value)
+
+    def onPreviewImageChange(self, value):
+        config['previewImage'] = value
+        self.previewImage = value
 
 
 # Create a Qt application

@@ -15,7 +15,7 @@ class Cloudy():
         self.channel      = options.get('channel', '')
         self.limit        = options.get('limit', 1500)
         self.image        = options.get('image', '')
-        
+
         self.mask         = None
         self.image_colors = None
 
