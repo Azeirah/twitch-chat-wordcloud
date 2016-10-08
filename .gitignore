@@ -1,0 +1,14 @@
+# python
+__pycache__/
+*.pyc
+
+# python pycharm IDE
+.idea
+
+# generated config file
+config.json
+
+# example images
+*.png
+*.jpg
+*.jpeg
