@@ -37,6 +37,19 @@ class CloudyWorker(QObject):
         self.stopped = True
 
 
+class FocusOutFilter(QObject):
+    """This thing is not reusable, it's specifically for the line widget that
+    takes a channel."""
+    def eventFilter(self, widget, event):
+        if event.type() == QEvent.FocusOut:
+            channel = widget.text()
+            if not channel[0] == '#':
+                widget.setText('#' + channel)
+            return False
+        else:
+            return False
+
+
 class CloudyGui(QFrame):
     def __init__(self):
         super().__init__()
@@ -85,6 +98,9 @@ class CloudyGui(QFrame):
         self.limitField.textChanged.connect   (self.onLimitChange)
         self.imageDirSelect.fileSelected.connect(self.selectImageFile)
         self.refreshRateField.textChanged.connect(self.onRefreshRateChange)
+
+        channelFocusOutFilter = FocusOutFilter(self.channelField)
+        self.channelField.installEventFilter(channelFocusOutFilter)
 
         self.startButton = QPushButton('Start')
         self.startButton.clicked.connect(self.startToggle)
